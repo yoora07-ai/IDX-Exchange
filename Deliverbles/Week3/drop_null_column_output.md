@@ -1,11 +1,11 @@
-# CRML Data Preprocessing Summary
+# CRMLS Data Preprocessing Summary
 
 ## Criteria
 - **Drop condition**: Columns with **more than 90% missing values** are removed
 
 ---
 
-## 1. CRML Listing
+## 1. CRMLS Listing
 
 ### Dropped Columns (13)
 
@@ -35,7 +35,7 @@
 
 ---
 
-## 2. CRML Sold
+## 2. CRMLS Sold
 
 ### Dropped Columns (17)
 
