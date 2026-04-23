@@ -51,7 +51,7 @@ print(f"Total number of rows after filtering     : {len(df_filtered):,}rows")
 # ============================================================
 
 # Load concatenated MLS listing data
-# isting = pd.read_csv("/Users/yoorachoi/Python/IDX/Listing/data/CRMLSListing_merged.csv")
+# isting = pd.read_csv("*/CRMLSListing_merged.csv")
 
 
 # Calculate missing % per column
@@ -72,7 +72,7 @@ print(f"Column count after drop: {list_droped.shape[1]}")
 print()
 
 # export .csv
-# list_droped.to_csv("/Users/yoorachoi/Python/IDX/Listing/data/CRMLSListing_null_droped.csv", index= False)
+# list_droped.to_csv("*/CRMLSListing_null_droped.csv", index= False)
 
 
 

@@ -50,7 +50,7 @@ print(f"Total number of rows after filtering     : {len(df_filtered):,}rows")
 # ============================================================
 
 # Load concatenated MLS Sold data
-# sold = pd.read_csv("/Users/yoorachoi/Python/IDX/Sold/data/CRMLSSold_merge.csv", low_memory=False)
+# sold = pd.read_csv("CRMLSSold_merge.csv", low_memory=False)
 
 # Calculate missing % per column
 sold_missing_pct = df_filtered.isnull().mean()*100
@@ -70,7 +70,7 @@ print()
 
 
 # Export .csv
-# sold_drop.to_csv("/Users/yoorachoi/Python/IDX/Sold/data/CRMLSSold_null_droped.csv", index=False)
+# sold_drop.to_csv("CRMLSSold_null_droped.csv", index=False)
 
 
 
