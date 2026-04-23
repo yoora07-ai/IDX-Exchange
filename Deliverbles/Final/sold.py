@@ -40,8 +40,10 @@ print(f"Total number of rows after filtering     : {len(df_filtered):,}rows")
 # Export csv file
 # df_filtered.to_csv("merged_(dataset name).csv", index=False) # enter the file name to export csv.
 
-
+# ============================================================
 # week 2 : EDA
+# ============================================================
+# Please refer to Week2 deliverble
 
 # ============================================================
 # Week 3-1 : Drop Columns with Over 90% Null Count
