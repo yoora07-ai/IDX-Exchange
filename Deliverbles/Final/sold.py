@@ -6,175 +6,169 @@ import numpy as np
 import glob as g
 
 # ============================================================
-# Week 1 : Data Concatenation & Filter PropertyType == Residential
+# Settings
 # ============================================================
 
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
 
-# Import files and sort them alphabetically
-csv_files = sorted(g.glob("./*.csv")) # enter the path 
-
-# Read all files once
-dfs = [pd.read_csv(f, low_memory=False) for f in csv_files]
-
-# Check row counts in each csv file and total number of rows
-total = 0
-for f, df in zip(csv_files, dfs):
-    rows = len(df)
-    total += rows
-    print(f"{f}: {rows:,}rows")
-
-# Concatenate csv files
-df_merge = pd.concat(dfs, ignore_index=True)
-
-# Filter PropertyType == Residential using the appending file
-df_filtered = df_merge[df_merge["PropertyType"] == "Residential"]
-
-# Check row numbers
-print(f"\nTotal number of rows before concatenation: {total:,}rows")
-print(f"Total number of rows after concatenation : {len(df_merge):,}rows")
-print(f"Total number of rows after filtering     : {len(df_filtered):,}rows")
-
-# Export csv file
-# df_filtered.to_csv("merged_(dataset name).csv", index=False) # enter the file name to export csv.
 
 # ============================================================
-# week 2 : EDA
+# Week 1 : Data Concatenation & Filter PropertyType == Residential
 # ============================================================
-# Please refer to Week2 deliverble
+
+def week1_load_and_filter(path="./*.csv"):
+
+    # Import files and sort them alphabetically
+    csv_files = sorted(g.glob(path))
+
+    # Read all files once
+    dfs = [pd.read_csv(f, low_memory=False) for f in csv_files]
+
+    # Check row counts in each csv file and total number of rows
+    total = 0
+    for f, df in zip(csv_files, dfs):
+        rows = len(df)
+        total += rows
+        print(f"{f}: {rows:,}rows")
+
+    # Concatenate csv files
+    df_merge = pd.concat(dfs, ignore_index=True)
+
+    # Filter PropertyType == Residential using the appending file
+    df_filtered = df_merge[df_merge["PropertyType"] == "Residential"]
+
+    # Check row numbers
+    print(f"\nTotal number of rows before concatenation: {total:,}rows")
+    print(f"Total number of rows after concatenation : {len(df_merge):,}rows")
+    print(f"Total number of rows after filtering     : {len(df_filtered):,}rows")
+
+    return df_filtered
+
 
 # ============================================================
 # Week 3-1 : Drop Columns with Over 90% Null Count
 # ============================================================
 
-# Load concatenated MLS Sold data
-# sold = pd.read_csv("CRMLSSold_merge.csv", low_memory=False)
+def week3_1_drop_null_columns(df_filtered):
 
-# Calculate missing % per column
-sold_missing_pct = df_filtered.isnull().mean()*100
+    # Calculate missing % per column
+    sold_missing_pct = df_filtered.isnull().mean()*100
 
-# Print columns with >90% missing values
-sold_col_drop = sold_missing_pct[sold_missing_pct>90].index.tolist()
-print("========== MLS Sold ==========")
-print("Columns to drop(>90% missing value):")
-print(sold_col_drop)
-print()
+    # Print columns with >90% missing values
+    sold_col_drop = sold_missing_pct[sold_missing_pct>90].index.tolist()
+    print("========== MLS Sold ==========")
+    print("Columns to drop(>90% missing value):")
+    print(sold_col_drop)
+    print()
 
-# Drop Columns having over 90% null count
-sold_drop = df_filtered.drop(columns=sold_col_drop)
-print(f"\n Column count before drop: {df_filtered.shape[1]}")
-print(f"Column count after drop: {sold_drop.shape[1]}")
-print()
+    # Drop Columns having over 90% null count
+    sold_drop = df_filtered.drop(columns=sold_col_drop)
+    print(f"\n Column count before drop: {df_filtered.shape[1]}")
+    print(f"Column count after drop: {sold_drop.shape[1]}")
+    print()
 
-
-# Export .csv
-# sold_drop.to_csv("CRMLSSold_null_droped.csv", index=False)
-
+    return sold_drop
 
 
 # ============================================================
 # Week 3-2 : Add the Mortgage Rate Column to Sold Data
 # ============================================================
 
-# Step 1 – Fetch the mortgage rate data from FRED
+def week3_2_add_mortgage_rate(sold_drop, listings_path="./CRMLSListing_null_droped.csv"):
 
-url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US"
-mortgage = pd.read_csv(url, parse_dates=['observation_date'])
-mortgage.columns = ['date', 'rate_30yr_fixed']
+    # Step 1 – Fetch the mortgage rate data from FRED
+    url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US"
+    mortgage = pd.read_csv(url, parse_dates=['observation_date'])
+    mortgage.columns = ['date', 'rate_30yr_fixed']
 
-# Step 2 – Resample weekly rates to monthly averages
-mortgage['year_month'] = mortgage['date'].dt.to_period('M')
-mortgage_monthly = (
-    mortgage.groupby('year_month')['rate_30yr_fixed']
-    .mean()
-    .reset_index()
-)
+    # Step 2 – Resample weekly rates to monthly averages
+    mortgage['year_month'] = mortgage['date'].dt.to_period('M')
+    mortgage_monthly = (
+        mortgage.groupby('year_month')['rate_30yr_fixed']
+        .mean()
+        .reset_index()
+    )
 
-# Step 3 – Create a matching year_month key on the MLS datasets
+    # Step 3 – Create a matching year_month key on the MLS datasets
 
-# Import CRML sold & s listing data
-sold = sold_drop
-listings = pd.read_csv("./CRMLSListing_null_droped.csv", low_memory=False)
+    # Import CRML sold & listing data
+    sold     = sold_drop
+    listings = pd.read_csv(listings_path, low_memory=False)
 
-# Sold dataset — key off CloseDate
-sold['year_month'] = pd.to_datetime(sold['CloseDate']).dt.to_period('M')
+    # Sold dataset — key off CloseDate
+    sold['year_month'] = pd.to_datetime(sold['CloseDate']).dt.to_period('M')
 
-# Listings dataset — key off ListingContractDate
-listings['year_month'] = pd.to_datetime(
-    listings['ListingContractDate']
-).dt.to_period('M')
+    # Listings dataset — key off ListingContractDate
+    listings['year_month'] = pd.to_datetime(
+        listings['ListingContractDate']
+    ).dt.to_period('M')
 
-# Step 4 – Merge
-sold_with_rates = sold.merge(mortgage_monthly, on='year_month', how='left')
-listings_with_rates = listings.merge(mortgage_monthly, on='year_month', how='left')
+    # Step 4 – Merge
+    sold_with_rates     = sold.merge(mortgage_monthly,     on='year_month', how='left')
+    listings_with_rates = listings.merge(mortgage_monthly, on='year_month', how='left')
 
-# Step 5 – Validate the merge
+    # Step 5 – Validate the merge
 
-# Check for any unmatched rows (rate should not be null)
-print(sold_with_rates['rate_30yr_fixed'].isnull().sum())
-print(listings_with_rates['rate_30yr_fixed'].isnull().sum())
+    # Check for any unmatched rows (rate should not be null)
+    print(sold_with_rates['rate_30yr_fixed'].isnull().sum())
+    print(listings_with_rates['rate_30yr_fixed'].isnull().sum())
 
-# Preview
+    # Preview
+    print(
+        sold_with_rates[
+            ['CloseDate', 'year_month', 'ClosePrice', 'rate_30yr_fixed']
+        ].head()
+    )
 
-print(
-    sold_with_rates[
-        ['CloseDate', 'year_month', 'ClosePrice', 'rate_30yr_fixed']
-    ].head()
-)
-
-# Step 6 - Export csv file
-#sold_with_rates.to_csv("CRMLSSold_with_rates.csv", index= False)
-#listings_with_rates.to_csv("CRMLSListing_with_rates.csv", index= False)
+    return sold_with_rates, listings_with_rates
 
 
 # ============================================================
 # Week 4 : Data Cleaning and Preparation
 # ============================================================
 
-# Step 1. Convert date fields to datetime format 
+# Step 1. Convert date fields to datetime format
 def convert_date_colums(df):
     date_cols = [col for col in df.columns if 'date' in col.lower()]
     print(f"Total {len(date_cols)} date fields : {date_cols}")
 
-    
     for col in date_cols:
-        df[col] = pd.to_datetime(df[col], errors = 'coerce')
-        print (f"{col} : successfully converted to datetime")
-      
+        df[col] = pd.to_datetime(df[col], errors='coerce')
+        print(f"{col} : successfully converted to datetime")
+
     print()
     return df
 
 
-#Step 2-1. Remove unnecessary or redundant columns    
+# Step 2-1. Remove unnecessary or redundant columns
 def drop_duplicate_columns(df, threshold=0.9):
-    
+
     # Auto-detect columns ending with '.1'
     dup_cols = [col for col in df.columns if col.endswith('.1')]
     pairs = [(col.replace('.1', ''), col) for col in dup_cols]
-    
+
     print(f"Duplicate pairs found ({len(pairs)}): {pairs}")
-    
+
     cols_to_drop = []
-    
+
     for base, dup in pairs:
         if base in df.columns and dup in df.columns:
             same_ratio = (df[base] == df[dup]).mean()
-            
+
             if same_ratio >= threshold:
                 print(f"DROP COMPELETED {base} vs {dup}: {same_ratio:.2f} → dropping '{dup}'")
                 cols_to_drop.append(dup)
             else:
                 print(f"DROP FAILED {base} vs {dup}: {same_ratio:.2f} → kept (values differ)")
-    
+
     df = df.drop(columns=cols_to_drop)
-    
+
     print(f"\n Columns dropped: {len(cols_to_drop)}")
     print(f"   Final column count: {df.shape[1]}")
-    
-    return df
 
+    return df
 
 
 # Step 2.2  Remove duplicate rows
@@ -182,27 +176,20 @@ def drop_duplicate_rows(df, dataset_name='dataset'):
     before = len(df)
     df = df.drop_duplicates()
     after = len(df)
-    
+
     print(f"  [{dataset_name}]")
     print(f"   Before : {before:,} rows")
     print(f"   After  : {after:,} rows")
     print(f"   Removed: {before - after:,} duplicate rows")
-    
+
     return df
 
-#Step 3. Handle missing values appropriately by data type
+
+# Step 3. Handle missing values appropriately by data type
 def handle_missing_values(df):
-    
-    numeric_cols     = df.select_dtypes(include='number').columns.tolist()
+
     categorical_cols = df.select_dtypes(include='object').columns.tolist()
     datetime_cols    = df.select_dtypes(include='datetime').columns.tolist()
-
-    # Numeric → median
-    for col in numeric_cols:
-        missing = df[col].isnull().sum()
-        if missing > 0:
-            df[col] = df[col].fillna(df[col].median())
-            print(f" {col}: {missing} missing → filled with median")
 
     # Categorical → 'Unknown'
     for col in categorical_cols:
@@ -221,20 +208,18 @@ def handle_missing_values(df):
     print()
     return df
 
-# Step 4. Ensure numeric fields are properly typed : find out all numeric fields are appropriate typed
-print(df.select_dtypes(include='object').dtypes)
 
-# Step 5. Remove or flag invalid numeric values
+# Step 5. flag invalid numeric values
 def flag_invalid_numeric_value(df):
-    
+
     rules = {
-        'ClosePrice' : ('<=', 0),
-        'LivingArea' : ('<=', 0),
-        'DaysOnMarket' : ('<', 0),
-        'BathroomsTotalInteger': ('<', 0),
-        'BedroomsTotal' : ('<', 0)
+        'ClosePrice'           : ('<=', 0),
+        'LivingArea'           : ('<=', 0),
+        'DaysOnMarket'         : ('<',  0),
+        'BathroomsTotalInteger': ('<',  0),
+        'BedroomsTotal'        : ('<',  0)
     }
-    
+
     for col, (operator, threshold) in rules.items():
         if col in df.columns:
             if operator == '<=':
@@ -250,8 +235,53 @@ def flag_invalid_numeric_value(df):
 
     return df
 
-# Run 
-    
+
+# ============================================================
+# Week 5 : Data Cleaning and Preparation(2)
+# ============================================================
+
+# Date Consistency Checks
+def check_date_consistency(df):
+    if 'ListingContractDate' in df.columns and 'CloseDate' in df.columns:
+        df['listing_after_close_flag'] = df['ListingContractDate'] > df['CloseDate']
+        print(f"listing_after_close_flag   : {df['listing_after_close_flag'].sum()} records")
+
+    if 'PurchaseContractDate' in df.columns and 'CloseDate' in df.columns:
+        df['purchase_after_close_flag'] = df['PurchaseContractDate'] > df['CloseDate']
+        print(f"purchase_after_close_flag  : {df['purchase_after_close_flag'].sum()} records")
+
+    if 'ListingContractDate' in df.columns and 'PurchaseContractDate' in df.columns:
+        df['negative_timeline_flag'] = df['ListingContractDate'] > df['PurchaseContractDate']
+        print(f"negative_timeline_flag     : {df['negative_timeline_flag'].sum()} records")
+
+    return df
+
+
+# Geographic Data Checks
+def check_geographic_data(df):
+    CA_LAT_MIN, CA_LAT_MAX =  32.5,  42.0
+    CA_LON_MIN, CA_LON_MAX = -124.5, -114.0
+
+    if 'Latitude' in df.columns and 'Longitude' in df.columns:
+        df['flag_missing_coordinates'] = df['Latitude'].isnull() | df['Longitude'].isnull()
+        print(f"flag_missing_coordinates   : {df['flag_missing_coordinates'].sum()} records")
+
+        df['flag_zero_coordinates'] = (df['Latitude'] == 0) | (df['Longitude'] == 0)
+        print(f"flag_zero_coordinates      : {df['flag_zero_coordinates'].sum()} records")
+
+        df['flag_positive_longitude'] = df['Longitude'] > 0
+        print(f"flag_positive_longitude    : {df['flag_positive_longitude'].sum()} records")
+
+        df['flag_out_of_state'] = (
+            (df['Latitude']  < CA_LAT_MIN) | (df['Latitude']  > CA_LAT_MAX) |
+            (df['Longitude'] < CA_LON_MIN) | (df['Longitude'] > CA_LON_MAX)
+        )
+        print(f"flag_out_of_state          : {df['flag_out_of_state'].sum()} records")
+
+    return df
+
+
+# Run
 def run_cleaning_pipeline(df, dataset_name='dataset'):
     print(f"{'='*50}")
     print(f" Starting Cleaning Pipeline : [{dataset_name}]")
@@ -277,6 +307,14 @@ def run_cleaning_pipeline(df, dataset_name='dataset'):
     print("-"*40)
     df = flag_invalid_numeric_value(df)
 
+    print("\nStep 6. Date Consistency Checks")
+    print("-"*40)
+    df = check_date_consistency(df)
+
+    print("\nStep 7. Geographic Data Checks")
+    print("-"*40)
+    df = check_geographic_data(df)
+
     print(f"\n{'='*50}")
     print(f" Pipeline Complete! [{dataset_name}]")
     print(f" Final shape: {df.shape}")
@@ -285,5 +323,157 @@ def run_cleaning_pipeline(df, dataset_name='dataset'):
     return df
 
 
-# Run
-sold = run_cleaning_pipeline(sold_with_rates, dataset_name='Listing')
+# ============================================================
+# Week 6 : Feature Engineering & Segmentation
+# ============================================================
+
+# key metrics functions
+def key_metrics(df):
+
+    # Price ratio : ClosePrice / OriginalListPrice
+    if 'ClosePrice' in df.columns and 'OriginalListPrice' in df.columns:
+        df['price_ratio'] = df['ClosePrice']/df['OriginalListPrice']
+        print("price_ratio created")
+
+    # Price Per Sq Ft : ClosePrice / LivingArea
+    if 'ClosePrice' in df.columns and 'LivingArea' in df.columns:
+        df['price_Per_Sq_Ft'] = df['ClosePrice']/df['LivingArea']
+        print("price_Per_Sq_Ft created")
+
+    # Days on Market : DaysOnMarket (raw field)
+    if 'DaysOnMarket' in df.columns:
+        print("DaysOnMarket already exists.")
+
+    # Year / Month / YrMo : Derived from CloseDate
+    if 'CloseDate' in df.columns:
+        df['close_year']  = df['CloseDate'].dt.year
+        df['close_month'] = df['CloseDate'].dt.month
+        df['close_yrmo']  = df['CloseDate'].dt.to_period('M')
+        print("close_year, close_month, and close_yrmo created")
+
+    # Close to Original List Ratio : ClosePrice / OriginalListPrice
+    if 'ClosePrice' in df.columns and 'OriginalListPrice' in df.columns:
+        df['close_to_original_list_ratio'] = df['ClosePrice']/df['OriginalListPrice']
+        print("close_to_original_list_ratio created")
+
+    # Listing to Contract Days : PurchaseContractDate - ListingContractDate
+    if 'PurchaseContractDate' in df.columns and 'ListingContractDate' in df.columns:
+        df['listing_to_contract_days'] = (df['PurchaseContractDate'] - df['ListingContractDate']).dt.days
+        print("listing_to_contract_days created")
+
+    # Contract to Close Days : CloseDate - PurchaseContractDate
+    if 'CloseDate' in df.columns and 'PurchaseContractDate' in df.columns:
+        df['contract_to_close_days'] = (df['CloseDate'] - df['PurchaseContractDate']).dt.days
+        print("contract_to_close_days created\n")
+
+    return df
+
+
+# remove flags
+def filter_clean_data(df):
+    """
+    Remove flagged records before segment analysis.
+    """
+    flag_cols = [col for col in df.columns if col.endswith('_flag')]
+
+    before = len(df)
+
+    # Remove the row that has at least one flag equal true
+    clean_df = df[~df[flag_cols].any(axis=1)]
+
+    after = len(clean_df)
+
+    print(f"Before : {before:,} rows")
+    print(f"After  : {after:,} rows")
+    print(f"Removed: {before - after:,} flagged rows")
+    print()
+
+    # Print the count of each flag
+    print("=== Flag Summary ===")
+    print(df[flag_cols].sum().sort_values(ascending=False))
+
+    return clean_df
+
+
+# segmentation analysis
+def segment_summary(df, dataset_name='dataset'):
+
+    # Key metrics only
+    key_metrics_cols = [m for m in [
+        'price_ratio',
+        'price_Per_Sq_Ft',
+        'DaysOnMarket',
+        'close_to_original_list_ratio',
+        'listing_to_contract_days',
+        'contract_to_close_days'
+    ] if m in df.columns]
+
+    group_cols = ['PropertyType', 'PropertySubType',
+                  'CountyOrParish', 'MLSAreaMajor',
+                  'ListOfficeName', 'BuyerOfficeName']
+
+    results = {}
+
+    for group_col in group_cols:
+        if group_col in df.columns:
+            summary = df.groupby(group_col)[key_metrics_cols].agg(
+                count                       = ('price_ratio',                'count'),
+                avg_price_ratio             = ('price_ratio',                'median'),
+                avg_price_per_sqft          = ('price_Per_Sq_Ft',            'median'),
+                avg_days_on_market          = ('DaysOnMarket',               'median'),
+                avg_close_to_original_ratio = ('close_to_original_list_ratio','median'),
+                avg_listing_to_contract     = ('listing_to_contract_days',   'median'),
+                avg_contract_to_close       = ('contract_to_close_days',     'median'),
+            ).round(2).sort_values('count', ascending=False)
+
+            results[group_col] = summary
+
+            print(f"\n{'='*60}")
+            print(f"  [{dataset_name}] Grouped by {group_col}")
+            print(f"{'='*60}")
+            print(summary.to_string())
+
+        else:
+            print(f" {group_col}: column not found, skipped")
+
+    return results
+
+
+# ============================================================
+# Run Full Pipeline
+# ============================================================
+
+# Week 1
+df_filtered = week1_load_and_filter(path="./*.csv")
+
+# Week 3-1
+sold_drop = week3_1_drop_null_columns(df_filtered)
+
+# Week 3-2
+sold_with_rates, listings_with_rates = week3_2_add_mortgage_rate(
+    sold_drop,
+    listings_path="./CRMLSListing_null_droped.csv"
+)
+
+# Week 4-5
+sold = run_cleaning_pipeline(sold_with_rates, dataset_name='Sold')
+
+# Week 6
+sold         = key_metrics(sold)
+sold_clean   = filter_clean_data(sold)
+sold_summary = segment_summary(sold_clean, dataset_name='Sold')
+
+# Segmentation analysis
+print("PropertyType and PropertySubType")
+print(sold_summary['PropertyType'])
+print(sold_summary['PropertySubType'])
+print()
+
+print("CountyOrParish and MLSAreaMajor")
+print(sold_summary['CountyOrParish'])
+print(sold_summary['MLSAreaMajor'])
+print()
+
+print("ListOfficeName and BuyerOfficeName")
+print(sold_summary['ListOfficeName'])
+print(sold_summary['BuyerOfficeName'])
