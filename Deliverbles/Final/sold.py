@@ -417,14 +417,14 @@ def segment_summary(df, dataset_name='dataset'):
     for group_col in group_cols:
         if group_col in df.columns:
             summary = df.groupby(group_col)[key_metrics_cols].agg(
-                count                       = ('price_ratio',                'count'),
+                sales                       = ('price_ratio',                'count'),
                 avg_price_ratio             = ('price_ratio',                'median'),
                 avg_price_per_sqft          = ('price_Per_Sq_Ft',            'median'),
                 avg_days_on_market          = ('DaysOnMarket',               'median'),
                 avg_close_to_original_ratio = ('close_to_original_list_ratio','median'),
                 avg_listing_to_contract     = ('listing_to_contract_days',   'median'),
                 avg_contract_to_close       = ('contract_to_close_days',     'median'),
-            ).round(2).sort_values('count', ascending=False)
+            ).round(2).sort_values('sales', ascending=False)
 
             results[group_col] = summary
 
@@ -440,6 +440,75 @@ def segment_summary(df, dataset_name='dataset'):
 
 
 # ============================================================
+# Week 7 : Outlier Detection and Data Quality
+# ============================================================
+
+def detect_outliers_iqr(df, cols, multiplier=1.5):
+    """
+    Flag outliers using IQR method.
+    
+    Parameters:
+        df         : pandas DataFrame
+        cols       : list of numeric columns to check
+        multiplier : IQR multiplier (default 1.5)
+    """
+    df = df.copy()
+    
+    print(f"{'='*60}")
+    print(f"  IQR Outlier Detection (multiplier={multiplier})")
+    print(f"{'='*60}\n")
+
+    for col in cols:
+        if col not in df.columns:
+            print(f"{col}: column not found, skipped")
+            continue
+
+        Q1    = df[col].quantile(0.25)
+        Q3    = df[col].quantile(0.75)
+        IQR   = Q3 - Q1
+        lower = Q1 - multiplier * IQR
+        upper = Q3 + multiplier * IQR
+
+        flag_col      = f'flag_outlier_{col}'
+        df[flag_col]  = (df[col] < lower) | (df[col] > upper)
+
+        print(f"  {col}")
+        print(f"    Q1={Q1:,.2f}  Q3={Q3:,.2f}  IQR={IQR:,.2f}")
+        print(f"    Lower={lower:,.2f}  Upper={upper:,.2f}")
+        print(f"    Outliers flagged: {df[flag_col].sum():,} records")
+        print()
+
+    return df
+
+def compare_before_after(df_full, df_clean, cols):
+    """
+    Compare dataset size and median values before and after filtering.
+    """
+    print(f"{'='*60}")
+    print(f"  Before vs After Comparison")
+    print(f"{'='*60}\n")
+
+    print(f"  Total rows")
+    print(f"    Before : {len(df_full):,}")
+    print(f"    After  : {len(df_clean):,}")
+    print(f"    Removed: {len(df_full) - len(df_clean):,} ({(len(df_full) - len(df_clean)) / len(df_full) * 100:.1f}%)\n")
+
+    print(f"  Median values")
+    print(f"  {'Column':<30} {'Before':>12} {'After':>12} {'Change':>10}")
+    print(f"  {'-'*65}")
+
+    for col in cols:
+        if col in df_full.columns and col in df_clean.columns:
+            before = df_full[col].median()
+            after  = df_clean[col].median()
+            change = after - before
+            print(f"  {col:<30} {before:>12,.2f} {after:>12,.2f} {change:>+10,.2f}")
+  
+
+target_cols = ['ClosePrice', 'LivingArea', 'DaysOnMarket']
+
+
+# ============================================================
 # Run Full Pipeline
 # ============================================================
 
@@ -451,8 +520,7 @@ sold_drop = week3_1_drop_null_columns(df_filtered)
 
 # Week 3-2
 sold_with_rates, listings_with_rates = week3_2_add_mortgage_rate(
-    sold_drop,
-    listings_path="./CRMLSListing_null_droped.csv"
+    sold_drop
 )
 
 # Week 4-5
@@ -477,3 +545,20 @@ print()
 print("ListOfficeName and BuyerOfficeName")
 print(sold_summary['ListOfficeName'])
 print(sold_summary['BuyerOfficeName'])
+
+# Week 7
+# Step 1. Flag outliers
+print("[Sold]")
+sold_flagged = detect_outliers_iqr(sold_clean,    cols=target_cols)
+
+# Step 2. Create clean filtered dataset (filtered outlier)
+outlier_flag_cols = [f'flag_outlier_{col}' for col in target_cols]
+sold_filtered = sold_flagged[~sold_flagged[outlier_flag_cols].any(axis=1)].copy()
+
+# Step 3. Before vs After
+print("\n[Sold]")
+compare_before_after(sold_clean,    sold_filtered,    cols=target_cols)
+
+# Step 4. Save both datasets
+sold_flagged.to_csv('sold_flagged.csv',       index=False)
+sold_filtered.to_csv('sold_filtered.csv',     index=False)
