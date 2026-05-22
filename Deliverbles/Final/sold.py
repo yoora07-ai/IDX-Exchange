@@ -76,7 +76,7 @@ def week3_1_drop_null_columns(df_filtered):
 # Week 3-2 : Add the Mortgage Rate Column to Sold Data
 # ============================================================
 
-def week3_2_add_mortgage_rate(sold_drop, listings_path="./CRMLSListing_null_droped.csv"):
+def week3_2_add_mortgage_rate(sold_drop):
 
     # Step 1 – Fetch the mortgage rate data from FRED
     url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=MORTGAGE30US"
@@ -93,27 +93,24 @@ def week3_2_add_mortgage_rate(sold_drop, listings_path="./CRMLSListing_null_drop
 
     # Step 3 – Create a matching year_month key on the MLS datasets
 
-    # Import CRML sold & listing data
-    sold     = sold_drop
-    listings = pd.read_csv(listings_path, low_memory=False)
+    # Import CRML sold data
+    sold = sold_drop.copy()
 
     # Sold dataset — key off CloseDate
     sold['year_month'] = pd.to_datetime(sold['CloseDate']).dt.to_period('M')
 
     # Listings dataset — key off ListingContractDate
-    listings['year_month'] = pd.to_datetime(
-        listings['ListingContractDate']
-    ).dt.to_period('M')
+    #listings['year_month'] = pd.to_datetime(
+    #    listings['ListingContractDate']
+    #).dt.to_period('M')
 
     # Step 4 – Merge
     sold_with_rates     = sold.merge(mortgage_monthly,     on='year_month', how='left')
-    listings_with_rates = listings.merge(mortgage_monthly, on='year_month', how='left')
 
     # Step 5 – Validate the merge
 
     # Check for any unmatched rows (rate should not be null)
     print(sold_with_rates['rate_30yr_fixed'].isnull().sum())
-    print(listings_with_rates['rate_30yr_fixed'].isnull().sum())
 
     # Preview
     print(
@@ -122,7 +119,7 @@ def week3_2_add_mortgage_rate(sold_drop, listings_path="./CRMLSListing_null_drop
         ].head()
     )
 
-    return sold_with_rates, listings_with_rates
+    return sold_with_rates
 
 
 # ============================================================
@@ -513,13 +510,13 @@ target_cols = ['ClosePrice', 'LivingArea', 'DaysOnMarket']
 # ============================================================
 
 # Week 1
-df_filtered = week1_load_and_filter(path="./*.csv")
+df_filtered = week1_load_and_filter(path="/Users/yoorachoi/Python/IDX/Sold/data/CRMLSSold202*.csv")
 
 # Week 3-1
 sold_drop = week3_1_drop_null_columns(df_filtered)
 
 # Week 3-2
-sold_with_rates, listings_with_rates = week3_2_add_mortgage_rate(
+sold_with_rates= week3_2_add_mortgage_rate(
     sold_drop
 )
 
@@ -560,5 +557,5 @@ print("\n[Sold]")
 compare_before_after(sold_clean,    sold_filtered,    cols=target_cols)
 
 # Step 4. Save both datasets
-sold_flagged.to_csv('sold_flagged.csv',       index=False)
-sold_filtered.to_csv('sold_filtered.csv',     index=False)
+sold_flagged.to_csv('/Users/yoorachoi/Python/IDX/Sold/data/sold_flagged.csv',       index=False)
+sold_filtered.to_csv('/Users/yoorachoi/Python/IDX/Sold/data/sold_filtered.csv',     index=False)

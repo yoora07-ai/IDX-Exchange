@@ -509,7 +509,7 @@ target_cols = ['ClosePrice', 'LivingArea', 'DaysOnMarket']
 # ============================================================
 
 # Week 1
-df_filtered = week1_load_and_filter(path="./*.csv")
+df_filtered = week1_load_and_filter(path="/Users/yoorachoi/Python/IDX/Listing/data/CRMLSListing20*.csv")
 
 # Week 3-1
 listing_drop = week3_1_drop_null_columns(df_filtered)
@@ -556,6 +556,6 @@ print("\n[Listing]")
 compare_before_after(listing_clean, listing_filtered, cols=target_cols)
 
 # Step 4. Save both datasets
-listing_flagged.to_csv('listing_flagged.csv', index=False)
-listing_filtered.to_csv('listing_filtered.csv', index=False)
+listing_flagged.to_csv('/Users/yoorachoi/Python/IDX/Listing/data/listing_flagged.csv', index=False)
+listing_filtered.to_csv('/Users/yoorachoi/Python/IDX/Listing/data/listing_filtered.csv', index=False)
 
